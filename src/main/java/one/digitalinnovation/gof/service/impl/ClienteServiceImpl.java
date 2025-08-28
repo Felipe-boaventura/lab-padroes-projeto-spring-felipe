@@ -2,6 +2,10 @@ package one.digitalinnovation.gof.service.impl;
 
 import java.util.Optional;
 
+import one.digitalinnovation.gof.strategychain.chain.CepExistenceHandler;
+import one.digitalinnovation.gof.strategychain.chain.CepFormatHandler;
+import one.digitalinnovation.gof.strategychain.chain.Handler;
+import one.digitalinnovation.gof.strategychain.chain.LoggingHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -67,16 +71,24 @@ public class ClienteServiceImpl implements ClienteService {
 	}
 
 	private void salvarClienteComCep(Cliente cliente) {
-		// Verificar se o Endereco do Cliente já existe (pelo CEP).
 		String cep = cliente.getEndereco().getCep();
+
+		Handler format = new CepFormatHandler();
+		Handler existencia = new CepExistenceHandler();
+		Handler log = new LoggingHandler();
+
+		format.setNext(existencia);
+		existencia.setNext(log);
+
 		Endereco endereco = enderecoRepository.findById(cep).orElseGet(() -> {
-			// Caso não exista, integrar com o ViaCEP e persistir o retorno.
 			Endereco novoEndereco = viaCepService.consultarCep(cep);
 			enderecoRepository.save(novoEndereco);
 			return novoEndereco;
 		});
+
+		format.handle(endereco);
+
 		cliente.setEndereco(endereco);
-		// Inserir Cliente, vinculando o Endereco (novo ou existente).
 		clienteRepository.save(cliente);
 	}
 
